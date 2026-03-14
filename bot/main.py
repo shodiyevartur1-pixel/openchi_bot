@@ -1,0 +1,40 @@
+import asyncio
+import logging
+from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+
+from config import settings
+from database import init_db
+
+# Handlers
+from handlers import start, menu, vote, withdraw, admin
+
+async def main():
+    logging.basicConfig(level=logging.INFO)
+    
+    # Initialize Database
+    await init_db()
+
+    # Initialize Bot
+    bot = Bot(
+        token=settings.BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
+    dp = Dispatcher()
+
+    # Routers
+    dp.include_router(start.router)
+    dp.include_router(menu.router)
+    dp.include_router(vote.router)
+    dp.include_router(withdraw.router)
+    dp.include_router(admin.router)
+
+    # Start polling
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.info("Bot stopped")
