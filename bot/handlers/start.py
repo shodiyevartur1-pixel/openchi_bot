@@ -103,9 +103,6 @@ async def process_user_logic(message: types.Message, bot: Bot, referrer_id: int 
                     parse_mode="HTML",
                     reply_markup=get_main_keyboard()
                 )
-                await message.answer(
-                    
-                )
                 
                 await message.answer(
                     "⚠️ Eslatma: Ovoz berayotganda screenshot qiling! Keyin esa screenshot qilgan rasmingizni yuboring, "
