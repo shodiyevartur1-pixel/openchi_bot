@@ -79,7 +79,7 @@ async def process_phone_and_send_link(message: types.Message, state: FSMContext)
     # Shuning uchun faqat Inline Keyboard yuboramiz.
     
     await message.answer(
-        "Quyidagi tugma orqali ovoz bering:", # Judam qisqa matn yoki umuman yo'q qilsa ham bo'ladi
+        "Quyidagi havola orqali ovoz bering:", # Judam qisqa matn yoki umuman yo'q qilsa ham bo'ladi
         reply_markup=get_vote_link_keyboard(settings.VOTE_LINK)
     )
 

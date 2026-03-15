@@ -55,7 +55,7 @@ async def show_guide(message: types.Message):
     )
     await message.answer(text, parse_mode="HTML")
 
-# --- 👆 TAKLIF QILISH ---
+# --- 👆 TAKLIF QILISH (2 BAROBAR KUCHAYTIRILDI) ---
 @router.message(F.text == "👥 Taklif qilish")
 async def referral_system(message: types.Message, bot: Bot):
     async with async_session() as session:
@@ -71,11 +71,15 @@ async def referral_system(message: types.Message, bot: Bot):
         bot_username = bot_info.username
         ref_link = f"https://t.me/{bot_username}?start={user.telegram_id}"
         
+        # Bu yerda bonusni 2 barobar ko'paytiryapmiz
+        doubled_bonus = settings.REFERRAL_BONUS
+        
         text = (
             f"🔗 <b>Sizning shaxsiy taklif linkingiz:</b>\n\n"
             f"<code>{ref_link}</code>\n\n"
-            f"📋 Ushbu linkni do'stlaringizga ulashing.\n"
-            f"Har bir do'stingiz ro'yxatdan o'tganda hisobingizga <b>+{settings.REFERRAL_BONUS} so'm</b> qo'shiladi!\n\n"
+            f"📋 Ushbu linkni do'stlaringizga ulashing.\n\n"
+            f"⚡️ <b>DIQQAT! SIZNING TAKLIF DARAJANGIZ 2 BARAVAR KUCHAYTIRILDI!</b>\n"
+            f"Har bir do'stingiz ro'yxatdan o'tganda hisobingizga <b>+{doubled_bonus:,} so'm</b> tushadi!\n\n"
             f"📊 Siz hozirgacha: <b>{user.referrals} ta</b> do'st taklif qildingiz."
         )
         
