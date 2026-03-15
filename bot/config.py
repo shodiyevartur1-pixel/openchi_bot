@@ -84,11 +84,22 @@ class Settings(BaseSettings):
                 return f"@{v}"
         return v
 
-    # --- URL Generatsiyasi (KUCHAYTIRILGAN) ---
+    # --- URL Generatsiyasi (RENDER VA POSTGRES UCHUN TO'G'RILANDI) ---
     @property
     def DATABASE_URL(self) -> str:
+        # Render'dagi Environment Variable'ni tekshirish
+        url = os.getenv("DATABASE_URL")
+        if url:
+            # SQLAlchemy asinxron ishlashi uchun postgres:// ni postgresql+asyncpg:// ga almashtiramiz
+            if url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+            return url
+        
+        # Agar DATABASE_URL topilmasa (lokal uchun)
         if self.DB_HOST == "db":
             return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        
+        # Oxirgi chora sifatida SQLite
         return "sqlite+aiosqlite:///./open_budget.db"
 
     @property
@@ -100,6 +111,8 @@ settings = Settings()
 
 # Konsolga chiqarish (Tekshiruv)
 print(f"⚙️ Config loaded. Admins: {settings.ADMIN_IDS}")
-db_type = "PostgreSQL (Docker)" if settings.DB_HOST == "db" else "SQLite (Local)"
-print(f"💾 Database Type: {db_type}")
+# Bazani aniqlash logikasi log uchun
+current_url = settings.DATABASE_URL
+db_log_type = "PostgreSQL (Remote/Docker)" if "postgresql" in current_url else "SQLite (Local)"
+print(f"💾 Database Type: {db_log_type}")
 print(f"📢 Channel ID: {settings.CHANNEL_ID}")
