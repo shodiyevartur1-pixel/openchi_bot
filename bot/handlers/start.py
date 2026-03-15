@@ -93,12 +93,13 @@ async def process_user_logic(message: types.Message, bot: Bot, referrer_id: int 
 
                 await session.commit()
 
-                # Yangi foydalanuvchiga xabarlar va MENU OCHILADI
+                # --- BU YERDA TUZATISH QILINDI ---
+                # Matn bitta string ko'rinishiga keltirildi (vergullar olib tashlandi)
                 await message.answer(
-                    f"👋 Assalomu alaykum {user_obj.first_name} botimizga xush kelibsiz.\n\n",
-                    "Aziz foydalanuvchi siz har bir ovozingiz berganingiz uchun botdan <b>30 000 so'm</b> pul ishlashingiz mumkin.\n\n",
-                    "Hamda do'stlaringizni taklif qilish orqali ham pul ishlashingiz mumkin.\n\n",
-                    f"Toʻlovlar: {settings.CHANNEL_ID}\n",
+                    f"👋 Assalomu alaykum {user_obj.first_name} botimizga xush kelibsiz.\n\n"
+                    "Aziz foydalanuvchi siz har bir ovozingiz berganingiz uchun botdan <b>30 000 so'm</b> pul ishlashingiz mumkin.\n\n"
+                    "Hamda do'stlaringizni taklif qilish orqali ham pul ishlashingiz mumkin.\n\n"
+                    f"Toʻlovlar: {settings.CHANNEL_ID}\n"
                     "Sizning ovozingiz bizning mahallamiz obodonlashtirilishi uchun juda muhim!",
                     parse_mode="HTML",
                     reply_markup=get_main_keyboard()

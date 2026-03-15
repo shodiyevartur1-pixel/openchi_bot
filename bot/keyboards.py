@@ -9,14 +9,18 @@ def get_main_keyboard():
     builder.button(text="💳 Pul yechish")
     builder.button(text="👥 Taklif qilish")
     builder.button(text="🏆 TOP 10")
-    builder.button(text="📄 To'lovlar")
+    builder.button(text="📜 To'lovlar tarixi")  # TUZATILDI: Handlerga mos keladigan qilib
     builder.button(text="📚 Qo'llanma")
     builder.button(text="⚙️ Sozlamalar")
-    builder.adjust(2)
+    builder.adjust(2) # Har qatorda 2 ta tugma
     return builder.as_markup(resize_keyboard=True)
 
-def get_back_keyboard():
+def get_back_keyboard():        
     return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="🔙 Ortga")]], resize_keyboard=True)
+
+# Yangi qo'shildi: Pul yechish bekor qilish tugmasi uchun
+def get_cancel_keyboard():
+    return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="🔙 Bekor qilish")]], resize_keyboard=True)
 
 def get_contact_keyboard():
     builder = ReplyKeyboardBuilder()
@@ -34,13 +38,16 @@ def get_vote_link_keyboard(link):
     return builder.as_markup()
 
 # --- Admin Panel ---
+
 def get_admin_keyboard():
     buttons = [
         [KeyboardButton(text="📊 Statistika"), KeyboardButton(text="💳 To'lovlar")],
         [KeyboardButton(text="📢 Xabar Tarqatish"), KeyboardButton(text="🔍 User Qidirish")],
+        [KeyboardButton(text="🚪 Chiqish")]  # YANGI TUGMA QO'SHILDI
     ]
     return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
 
+# ... qolgan kod ...
 def get_user_manage_keyboard(user_id):
     return InlineKeyboardMarkup(inline_keyboard=[
         [

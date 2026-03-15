@@ -1,5 +1,6 @@
 import os
 import sys
+import json  # JSON kutubxonasini qo'shdik
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
@@ -51,10 +52,22 @@ class Settings(BaseSettings):
     @classmethod
     def parse_admin_ids(cls, v):
         if isinstance(v, str):
+            # Agar [ ] qavslar ichida bo'lsa (JSON format)
+            if v.startswith('[') and v.endswith(']'):
+                try:
+                    # JSON formatni listga aylantiramiz
+                    return json.loads(v)
+                except json.JSONDecodeError:
+                    pass
+            
+            # Agar vergul bilan ajratilgan bo'lsa (1,2,3)
             if ',' in v:
                 return [int(x.strip()) for x in v.split(',') if x.strip().isdigit()]
+            
+            # Agar bitta raqam bo'lsa
             if v.isdigit():
                 return [int(v)]
+                
         if isinstance(v, list):
             return v
         return []
@@ -65,11 +78,8 @@ class Settings(BaseSettings):
     def parse_channel_id(cls, v):
         if isinstance(v, str):
             v = v.strip()
-            # Agar http link bo'lsa, undan username ni ajratib olish mumkin, 
-            # lekin oddiy @username yoki ID yozish tavsiya etiladi.
             if v.startswith("@") or v.startswith("-100"):
                 return v
-            # Agar faqat username yozilgan bo'lsa (@ belgisiz), qo'shib qo'yamiz
             if not v.startswith("@") and not v.startswith("http"):
                 return f"@{v}"
         return v
@@ -77,18 +87,8 @@ class Settings(BaseSettings):
     # --- URL Generatsiyasi (KUCHAYTIRILGAN) ---
     @property
     def DATABASE_URL(self) -> str:
-        """
-        Avtomatik aniqlash:
-        Agar Docker muhitida ishlayotgan bo'lsa (DB_HOST=db) -> PostgreSQL ishlatadi.
-        Agar Windows/Local muhitida ishlayotgan bo'lsa -> SQLite ishlatadi.
-        Bu usul xatolarni butunlay oldini oladi.
-        """
-        # Agar .env da DB_HOST="db" (Docker) bo'lsa, Postgres ga ulanamiz
         if self.DB_HOST == "db":
             return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-        
-        # Aks holda (Windows uchun) SQLite ishlatamiz (Oson va xatosiz)
-        # Bu sizni PostgreSQL o'rnatib qiynalishizdan qutqaradi
         return "sqlite+aiosqlite:///./open_budget.db"
 
     @property
@@ -100,7 +100,6 @@ settings = Settings()
 
 # Konsolga chiqarish (Tekshiruv)
 print(f"⚙️ Config loaded. Admins: {settings.ADMIN_IDS}")
-# Foydalanilayotgan baza turi
 db_type = "PostgreSQL (Docker)" if settings.DB_HOST == "db" else "SQLite (Local)"
 print(f"💾 Database Type: {db_type}")
 print(f"📢 Channel ID: {settings.CHANNEL_ID}")

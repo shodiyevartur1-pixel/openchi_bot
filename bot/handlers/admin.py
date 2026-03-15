@@ -1,10 +1,10 @@
 from aiogram import Router, F, types, Bot
 from aiogram.fsm.context import FSMContext
 from sqlalchemy import select, func, update
-# NUQTALARNI OLIB TASHLADIK
 from database import async_session
 from models import User, WithdrawRequest
-from keyboards import (get_admin_keyboard, get_withdraw_action_keyboard, 
+# Bu yerga get_main_keyboard ni ham qo'shing:
+from keyboards import (get_admin_keyboard, get_main_keyboard, get_withdraw_action_keyboard, 
                        get_back_keyboard, get_user_manage_keyboard, 
                        get_confirm_keyboard)
 from states import BroadcastState, AdminUserSearch, AdminEditBalance
@@ -12,12 +12,11 @@ from config import settings
 import logging
 import asyncio
 
-# ... kodning qolgan qismi o'zgarishsiz qoladi ...
-
 router = Router()
 logger = logging.getLogger(__name__)
 
 def is_admin(user_id):
+    # ADMIN_IDS endi list bo'lgani uchun 'in' tekshiruvi to'g'ri ishlaydi
     return int(user_id) in settings.ADMIN_IDS
 
 # --- Panelga Kirish ---
@@ -40,7 +39,12 @@ async def admin_stats(message: types.Message):
     async with async_session() as session:
         total_users = (await session.execute(select(func.count(User.id)))).scalar() or 0
         total_votes = (await session.execute(select(func.sum(User.votes)))).scalar() or 0
-        pending_reqs = (await session.execute(select(func.count(WithdrawRequest.id)).where(WithdrawRequest.status == "pending"))).scalar() or 0
+        # WithdrawRequest modeli bo'lsa ishlaydi, bo'lmasa 0
+        try:
+            pending_reqs = (await session.execute(select(func.count(WithdrawRequest.id)).where(WithdrawRequest.status == "pending"))).scalar() or 0
+        except:
+            pending_reqs = 0
+        
         total_balance = (await session.execute(select(func.sum(User.balance)))).scalar() or 0
         banned_count = (await session.execute(select(func.count(User.id)).where(User.is_banned == True))).scalar() or 0
 
@@ -54,52 +58,149 @@ async def admin_stats(message: types.Message):
     )
     await message.answer(stats, parse_mode="HTML")
 
-# --- To'lovlar ---
+# --- To'lovlar (WithdrawRequest modeli asosida) ---
 @router.message(F.text == "💳 To'lovlar")
 async def admin_withdraws(message: types.Message):
     if not is_admin(message.from_user.id): return
-    async with async_session() as session:
-        reqs = (await session.execute(select(WithdrawRequest).where(WithdrawRequest.status == "pending").limit(10))).scalars().all()
     
-    if not reqs:
-        await message.answer("✅ Hozircha kutilayotgan so'rovlar yo'q.")
-        return
+    # Agar WithdrawRequest modeli mavjud bo'lsa
+    try:
+        async with async_session() as session:
+            reqs = (await session.execute(select(WithdrawRequest).where(WithdrawRequest.status == "pending").limit(10))).scalars().all()
+        
+        if not reqs:
+            await message.answer("✅ Hozircha kutilayotgan so'rovlar yo'q.")
+            return
 
-    for r in reqs:
-        user = (await session.execute(select(User).where(User.id == r.user_id))).scalar_one()
-        username = f"@{user.username}" if user.username else "yo'q"
-        text = (
-            f"🆔 So'rov ID: <b>{r.id}</b>\n"
-            f"👤 User: {user.full_name} ({username})\n"
-            f"🆔 Telegram ID: <code>{user.telegram_id}</code>\n"
-            f"💰 Summa: <b>{int(r.amount):,} so'm</b>\n"
-            f"💳 Karta: <code>{r.card_number}</code>"
-        )
-        await message.answer(text, parse_mode="HTML", reply_markup=get_withdraw_action_keyboard(r.id))
+        for r in reqs:
+            user = (await session.execute(select(User).where(User.id == r.user_id))).scalar_one()
+            username = f"@{user.username}" if user.username else "yo'q"
+            text = (
+                f"🆔 So'rov ID: <b>{r.id}</b>\n"
+                f"👤 User: {user.full_name} ({username})\n"
+                f"🆔 Telegram ID: <code>{user.telegram_id}</code>\n"
+                f"💰 Summa: <b>{int(r.amount):,} so'm</b>\n"
+                f"💳 Karta: <code>{r.card_number}</code>"
+            )
+            await message.answer(text, parse_mode="HTML", reply_markup=get_withdraw_action_keyboard(r.id))
+    except Exception as e:
+        logger.error(f"To'lovlar bo'limida xato: {e}")
+        await message.answer("⚠️ To'lovlar bo'limini ochishda xatolik yuz berdi.")
 
+# --- TASDIQLASH (Admin paneli uchun) ---
 @router.callback_query(F.data.startswith("approve_"))
-async def approve_withdraw(callback: types.CallbackQuery):
+async def approve_withdraw(callback: types.CallbackQuery, bot: Bot):
     if not is_admin(callback.from_user.id): return
-    req_id = int(callback.data.split("_")[1])
-    async with async_session() as session:
-        req = (await session.execute(select(WithdrawRequest).where(WithdrawRequest.id == req_id))).scalar_one()
-        req.status = "approved"
-        await session.commit()
-    await callback.message.edit_text(f"✅ To'lov tasdiqlandi (ID: {req_id})")
-    await callback.answer("Tasdiqlandi")
+    
+    try:
+        # Ma'lumotlarni ajratib olish
+        data_parts = callback.data.split("_")
+        # approve_ID yoki approve_ID_SUMMA formati bo'lishi mumkin
+        req_id = int(data_parts[1])
+        
+        async with async_session() as session:
+            # WithdrawRequest dan izlaymiz
+            req = (await session.execute(select(WithdrawRequest).where(WithdrawRequest.id == req_id))).scalar_one_or_none()
+            
+            if req:
+                req.status = "approved"
+                user = (await session.execute(select(User).where(User.id == req.user_id))).scalar_one_or_none()
+                await session.commit()
+                
+                # Foydalanuvchiga xabar yuboramiz
+                if user:
+                    try:
+                        await bot.send_message(
+                            user.telegram_id,
+                            f"✅ <b>So'rovingiz tasdiqlandi!</b>\n\n"
+                            f"💰 <b>{int(req.amount):,} so'm</b> pul kartangizga tushirildi.",
+                            parse_mode="HTML"
+                        )
+                    except Exception as e:
+                        logger.warning(f"Foydalanuvchiga xabar bormadi: {e}")
 
+                await callback.message.edit_text(f"✅ To'lov tasdiqlandi (ID: {req_id})")
+                await callback.answer("Tasdiqlandi")
+            else:
+                # Agar WithdrawRequest topilmasa, menu.py dan kelgan format deb hisoblaymiz
+                # Format: approve_USERID_SUMMA
+                user_id = int(data_parts[1])
+                amount = int(data_parts[2])
+                
+                # Foydalanuvchiga xabar
+                try:
+                    await bot.send_message(
+                        user_id,
+                        f"✅ <b>So'rovingiz tasdiqlandi!</b>\n\n"
+                        f"💰 <b>{amount:,} so'm</b> pul kartangizga tushirildi.",
+                        parse_mode="HTML"
+                    )
+                except: pass
+                
+                await callback.message.edit_text(callback.message.text + f"\n\n<b>✅ TASDIQLANDI</b>", parse_mode="HTML")
+                await callback.answer("Tasdiqlandi")
+
+    except Exception as e:
+        logger.error(f"Tasdiqlashda xato: {e}")
+        await callback.answer("Xatolik yuz berdi!", show_alert=True)
+
+# --- RAD ETISH (Admin paneli uchun) ---
 @router.callback_query(F.data.startswith("reject_"))
-async def reject_withdraw(callback: types.CallbackQuery):
+async def reject_withdraw(callback: types.CallbackQuery, bot: Bot):
     if not is_admin(callback.from_user.id): return
-    req_id = int(callback.data.split("_")[1])
-    async with async_session() as session:
-        req = (await session.execute(select(WithdrawRequest).where(WithdrawRequest.id == req_id))).scalar_one()
-        req.status = "rejected"
-        user = (await session.execute(select(User).where(User.id == req.user_id))).scalar_one()
-        user.balance += req.amount
-        await session.commit()
-    await callback.message.edit_text(f"❌ Rad etildi (ID: {req_id}). Pul qaytarildi.")
-    await callback.answer("Rad etildi")
+    
+    try:
+        data_parts = callback.data.split("_")
+        req_id = int(data_parts[1])
+        
+        async with async_session() as session:
+            req = (await session.execute(select(WithdrawRequest).where(WithdrawRequest.id == req_id))).scalar_one_or_none()
+            
+            if req:
+                req.status = "rejected"
+                user = (await session.execute(select(User).where(User.id == req.user_id))).scalar_one_or_none()
+                if user:
+                    user.balance += req.amount # Pulni qaytarish
+                await session.commit()
+                
+                if user:
+                    try:
+                        await bot.send_message(
+                            user.telegram_id,
+                            f"❌ <b>So'rovingiz rad etildi.</b>\n\n"
+                            f"💰 <b>{int(req.amount):,} so'm</b> hisobingizga qaytarildi.",
+                            parse_mode="HTML"
+                        )
+                    except: pass
+
+                await callback.message.edit_text(f"❌ Rad etildi (ID: {req_id}). Pul qaytarildi.")
+                await callback.answer("Rad etildi")
+            else:
+                # Agar WithdrawRequest topilmasa (menu.py formati)
+                user_id = int(data_parts[1])
+                amount = int(data_parts[2])
+                
+                async with async_session() as session:
+                     user = (await session.execute(select(User).where(User.telegram_id == user_id))).scalar_one_or_none()
+                     if user:
+                         user.balance += amount
+                         await session.commit()
+                
+                try:
+                    await bot.send_message(
+                        user_id,
+                        f"❌ <b>So'rovingiz rad etildi.</b>\n\n"
+                        f"💰 <b>{amount:,} so'm</b> hisobingizga qaytarildi.",
+                        parse_mode="HTML"
+                    )
+                except: pass
+
+                await callback.message.edit_text(callback.message.text + f"\n\n<b>❌ RAD ETILDI</b>", parse_mode="HTML")
+                await callback.answer("Rad etildi")
+
+    except Exception as e:
+        logger.error(f"Rad etishda xato: {e}")
+        await callback.answer("Xatolik yuz berdi!", show_alert=True)
 
 # --- User Qidirish ---
 @router.message(F.text == "🔍 User Qidirish")
@@ -212,3 +313,19 @@ async def send_broadcast(callback: types.CallbackQuery, state: FSMContext, bot: 
 async def cancel_broadcast(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.edit_text("❌ Bekor qilindi.")
+
+# --- ADMIN PANELDAN CHIQISH ---
+@router.message(F.text == "🚪 Chiqish")
+async def admin_exit(message: types.Message, state: FSMContext):
+    if not is_admin(message.from_user.id): 
+        return
+    
+    # Agar biror jarayon davom etayotgan bo'lsa, to'xtatamiz
+    await state.clear()
+    
+    # Foydalanuvchining asosiy menyusini qaytarib beramiz
+    await message.answer(
+        "👋 Siz admin paneldan chiqdingiz.\n"
+        "Asosiy menyu faollashtirildi.", 
+        reply_markup=get_main_keyboard()
+    )
