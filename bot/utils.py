@@ -24,3 +24,23 @@ async def get_cache(key: str):
 
 async def set_cache(key: str, value: str, expire: int = 60):
     await redis_client.set(key, value, ex=expire)
+
+from flask import Flask
+from threading import Thread
+
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is alive!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
+# Botni ishga tushirishdan oldin chaqiring
+keep_alive()
+# ... botni ishga tushirish kodi (bot.polling() yoki executable)

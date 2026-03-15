@@ -26,3 +26,5 @@ class AdminUserSearch(StatesGroup):
 class AdminEditBalance(StatesGroup):
     """Balansni o'zgartirish"""
     waiting_for_amount = State() # Summa kiritish kutish
+
+    
