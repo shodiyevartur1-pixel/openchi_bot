@@ -15,5 +15,4 @@ COPY . .
 
 # Agar main.py papka ichida bo'lsa (masalan: bot/main.py), pastdagi qatorni o'zgartiring
 # Agar main.py ildizda bo'lsa (requirements yonida), quyidagicha qoldiring:
-CMD ["python", "main.py"]
-
+CMD ["python", "bot/main.py"]
