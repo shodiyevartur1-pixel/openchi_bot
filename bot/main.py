@@ -38,3 +38,10 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         logging.info("Bot stopped")
+
+    async def main():
+        # Jadvallarni yaratish (agar bazada yo'q bo'lsa)
+        await init_db() 
+        
+        # Botni ishga tushirish
+        await dp.start_polling(Bot)
