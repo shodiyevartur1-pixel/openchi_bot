@@ -27,4 +27,11 @@ class AdminEditBalance(StatesGroup):
     """Balansni o'zgartirish"""
     waiting_for_amount = State() # Summa kiritish kutish
 
-    
+# states.py fayliga qo'shing
+class AdminSendMessage(StatesGroup):
+    waiting_for_text = State()
+
+# ... boshqa state lar ...
+
+class AdminSendMessage(StatesGroup):
+    waiting_for_text = State()

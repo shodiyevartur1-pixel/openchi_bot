@@ -4,44 +4,50 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
+# Sozlamalar va ma'lumotlar bazasi
 from config import settings
 from database import init_db
 
-# Handlers - TO'G'RI IMPORT
+# Middleware
+from middlewares import BanCheckMiddleware
+
+# Handlerlar (Handlers papkasidagi fayllar)
 from handlers import start, menu, vote, withdraw, admin
 
 async def main():
+    # Log sozlamalari
     logging.basicConfig(level=logging.INFO)
     
-    # Initialize Database
+    # Ma'lumotlar bazasini ishga tushirish
     await init_db()
 
-    # Initialize Bot
+    # Bot va Dispatcher ni sozlash
     bot = Bot(
         token=settings.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher()
 
-    # Routers - Admin routeri oxiriga qo'yildi
+    # --- MIDDLEWARE NI ULASH (MUHIM QISM) ---
+    # Bu routerlardan AVVAL kelishi shart.
+    # BanCheckMiddleware ban qilingan userlarni botdan to'xtatadi
+    dp.message.middleware(BanCheckMiddleware())
+    dp.callback_query.middleware(BanCheckMiddleware())
+
+    # --- ROUTERLARNI ULASH ---
+    # Handlerlar ketma-ketligi muhim emas, lekin odatda asosiy menu oxiriga qo'yiladi
     dp.include_router(start.router)
     dp.include_router(menu.router)
     dp.include_router(vote.router)
     dp.include_router(withdraw.router)
-    dp.include_router(admin.router) # Bu yerda 'admin' moduli handlers dan olinmoqda
+    dp.include_router(admin.router) # admin.router deb to'g'ri yozildi
 
-    # Start polling
+    # Botni ishga tushirish (Polling)
+    logging.info("Bot ishga tushirilmoqda...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logging.info("Bot stopped")
-
-    async def main():
-        # Jadvallarni yaratish (agar bazada yo'q bo'lsa)
-        await init_db() 
-        
-        # Botni ishga tushirish
-        await dp.start_polling(Bot)
+        logging.info("Bot to'xtatildi")
