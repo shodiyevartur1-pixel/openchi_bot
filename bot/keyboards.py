@@ -11,7 +11,6 @@ def get_main_keyboard():
     builder.button(text="🏆 TOP 10")
     builder.button(text="📜 To'lovlar tarixi")  # TUZATILDI: Handlerga mos keladigan qilib
     builder.button(text="📚 Qo'llanma")
-    builder.button(text="⚙️ Sozlamalar")
     builder.adjust(2) # Har qatorda 2 ta tugma
     return builder.as_markup(resize_keyboard=True)
 
