@@ -87,7 +87,7 @@ async def show_guide(message: types.Message):
         "   • Do'stlaringizni taklif qilish orqali ham pul ishlashingiz mumkin.\n\n"
         "3️⃣ <b>Pul yechish:</b>\n"
         "   • Balans yetarli bo'lsa, 'Pul yechish' bo'limidan so'rov yuboring.\n\n"
-        "⚠️ <b>Admin:</b> @ar1k_bro"
+        "⚠️ <b>Admin:</b> @budjet_uz"
     )
     await message.answer(text, parse_mode="HTML")
 
